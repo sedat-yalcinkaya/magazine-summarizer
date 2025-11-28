@@ -1,0 +1,51 @@
+name: Weekly Magazine Summarizer
+
+# Phase 1: Triggers
+# This tells the robot when to run
+on:
+  workflow_dispatch:      # Allows you to click a button to test it manually
+  schedule:
+    - cron: '0 9 * * 1'   # Runs automatically every Monday at 9:00 AM UTC
+
+# Phase 2: Permissions
+# This gives the robot permission to save the new text file back to your repo
+permissions:
+  contents: write
+
+# Phase 3: The Job
+jobs:
+  run_summarizer:
+    runs-on: ubuntu-latest  # Runs on a standard Linux server
+
+    steps:
+      # Step A: Check out your code onto the server
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step B: Install Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # Step C: Install the tools from requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      # Step D: Run your Python script
+      # We pass the secret key into the script here
+      - name: Run summarizer script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py
+
+      # Step E: Save the result back to GitHub
+      # If summary.txt exists, this adds it to the repo
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GitHub Action Robot"
+          git config --global user.email "action@github.com"
+          git add summary.txt
+          git commit -m "Add new weekly summary" || echo "No changes to commit"
+          git push
