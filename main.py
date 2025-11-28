@@ -38,7 +38,7 @@ def extract_text_from_pdf(pdf_path):
 def summarize_text(text):
     print("Sending text to Gemini for summarization...")
     # We use the specific model you requested
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     # This is the prompt we send to the AI
     prompt = f"Please provide a concise summary of the following magazine/document content:\n\n{text}"
