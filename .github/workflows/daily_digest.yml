@@ -48,4 +48,5 @@ jobs:
           git config --global user.email "action@github.com"
           git add summary.txt
           git commit -m "Add new weekly summary" || echo "No changes to commit"
+          git pull --rebase
           git push
