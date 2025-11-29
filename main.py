@@ -126,8 +126,8 @@ def extract_text_from_pdf(pdf_file):
 
 def summarize_text(text):
     print("Analyzing with Gemini Pro...")
-    model = genai.GenerativeModel("gemini-1.5-pro")
-    
+model = genai.GenerativeModel("gemini-1.5-pro-latest")
+
     prompt = (
         "You are the Chief Editor at The Economist. Read the text below. "
         "Summarize the issue, but prioritizing these specific sections: "
