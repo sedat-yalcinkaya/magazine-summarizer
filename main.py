@@ -4,64 +4,114 @@ import google.generativeai as genai
 from pypdf import PdfReader
 
 # --- CONFIGURATION ---
-# This line grabs your secret key from the GitHub settings
 API_KEY = os.environ["GEMINI_API_KEY"]
-
-# For this tutorial, we are using a sample PDF URL.
-# In the future, you can change this to your specific magazine URL.
-PDF_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
-
-# Configure the Gemini "Brain"
 genai.configure(api_key=API_KEY)
 
-def download_pdf(url, filename="issue.pdf"):
-    print(f"Downloading PDF from {url}...")
-    response = requests.get(url)
-    if response.status_code == 200:
-        with open(filename, "wb") as f:
-            f.write(response.content)
-        print("Download successful!")
-        return filename
-    else:
-        print("Failed to download PDF.")
+# The repository we want to read from
+TARGET_REPO = "Monkfishare/The_Economist"
+BASE_PATH = "TE/2025"
+
+def get_latest_pdf_url():
+    """
+    Finds the latest weekly folder, then finds the PDF inside it.
+    """
+    # 1. Get list of all weekly folders
+    api_url = f"https://api.github.com/repos/{TARGET_REPO}/contents/{BASE_PATH}"
+    print(f"Checking for updates in: {api_url}")
+    
+    response = requests.get(api_url)
+    if response.status_code != 200:
+        print(f"Error: Could not list folders. GitHub says: {response.text}")
         return None
 
+    # Filter for only directories (folders) and sort them to get the last one
+    items = response.json()
+    folders = [i['name'] for i in items if i['type'] == 'dir']
+    
+    if not folders:
+        print("No folders found!")
+        return None
+        
+    # Assuming folders are named by date/issue, the last one is the latest
+    latest_folder = sorted(folders)[-1]
+    print(f"Latest issue folder found: {latest_folder}")
+
+    # 2. Look inside that specific folder for a PDF
+    folder_url = f"https://api.github.com/repos/{TARGET_REPO}/contents/{BASE_PATH}/{latest_folder}"
+    response = requests.get(folder_url)
+    files = response.json()
+
+    # Find the file that ends with .pdf
+    pdf_url = None
+    for file in files:
+        if file['name'].lower().endswith('.pdf'):
+            print(f"Found PDF: {file['name']}")
+            pdf_url = file['download_url']
+            break
+            
+    return pdf_url
+
+def download_pdf(url, filename="issue.pdf"):
+    print(f"Downloading from {url}...")
+    response = requests.get(url)
+    with open(filename, "wb") as f:
+        f.write(response.content)
+    print("Download finished.")
+    return filename
+
 def extract_text_from_pdf(pdf_path):
-    print("Reading PDF text...")
-    reader = PdfReader(pdf_path)
-    text = ""
-    # We loop through every page and stick the text together
-    for page in reader.pages:
-        text += page.extract_text() + "\n"
-    return text
+    print("Extracting text...")
+    try:
+        reader = PdfReader(pdf_path)
+        text = ""
+        # Limit to first 30 pages to avoid hitting Gemini's limit or timeout
+        # You can increase this if needed
+        for i, page in enumerate(reader.pages[:30]): 
+            text += page.extract_text() + "\n"
+        return text
+    except Exception as e:
+        print(f"Error reading PDF: {e}")
+        return ""
 
 def summarize_text(text):
-    print("Sending text to Gemini for summarization...")
-    # We use the specific model you requested
+    print("Analyzing text with Gemini...")
     model = genai.GenerativeModel("gemini-2.5-flash")
     
-    # This is the prompt we send to the AI
-    prompt = f"Please provide a concise summary of the following magazine/document content:\n\n{text}"
+    # We ask for a structured summary
+    prompt = (
+        "You are an expert editor. Please summarize the following magazine issue. "
+        "Highlight the 3 biggest stories in detail, and then provide a bulleted list "
+        "of other notable topics. ignore ads and table of contents.\n\n"
+        f"{text}"
+    )
     
     response = model.generate_content(prompt)
     return response.text
 
 def main():
-    # Step 1: Download
-    pdf_file = download_pdf(PDF_URL)
+    # Step 1: Find the real PDF URL
+    pdf_url = get_latest_pdf_url()
     
-    if pdf_file:
-        # Step 2: Read Text
+    if pdf_url:
+        # Step 2: Download
+        pdf_file = download_pdf(pdf_url)
+        
+        # Step 3: Read
         pdf_text = extract_text_from_pdf(pdf_file)
         
-        # Step 3: Summarize
-        summary = summarize_text(pdf_text)
-        print("Summary generated!")
-        
-        # Step 4: Save to file
-        with open("summary.txt", "w") as f:
-            f.write(summary)
-        print("Summary saved to summary.txt")
+        if pdf_text:
+            # Step 4: Summarize
+            summary = summarize_text(pdf_text)
+            
+            # Step 5: Save
+            with open("summary.txt", "w", encoding="utf-8") as f:
+                f.write(f"Source: {pdf_url}\n\n")
+                f.write(summary)
+            print("Success! Summary saved.")
+        else:
+            print("PDF was empty or unreadable.")
+    else:
+        print("Could not find a PDF to download.")
 
 if __name__ == "__main__":
     main()
