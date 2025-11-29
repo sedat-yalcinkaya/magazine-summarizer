@@ -34,10 +34,12 @@ jobs:
           pip install -r requirements.txt
 
       # Step D: Run your Python script
-      # We pass the secret key into the script here
       - name: Run summarizer script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}        # <--- Added
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }} # <--- Added
         run: python main.py
 
       # Step E: Save the result back to GitHub
