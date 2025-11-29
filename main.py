@@ -118,7 +118,9 @@ def extract_text_from_pdf(pdf_file):
 
 def summarize_text(text):
     print("Analyzing with Gemini...")
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    # CHANGE THIS LINE BELOW:
+    model = genai.GenerativeModel("gemini-1.5-pro") 
+    
     
     # --- UPDATED PROMPT FOR SPECIFIC SECTIONS ---
     prompt = (
