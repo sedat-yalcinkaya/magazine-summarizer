@@ -4,10 +4,17 @@ import google.generativeai as genai
 from pypdf import PdfReader
 import io
 from fpdf import FPDF
+import smtplib
+from email.message import EmailMessage
 
 # --- CONFIGURATION ---
 API_KEY = os.environ["GEMINI_API_KEY"]
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") 
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+# Email Credentials
+EMAIL_USER = os.environ.get("EMAIL_USER")
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+
+# Use PRO model for better reasoning
 genai.configure(api_key=API_KEY)
 
 TARGET_REPO = "Monkfishare/The_Economist"
@@ -16,10 +23,8 @@ BASE_PATH = "TE/2025"
 # --- THE PUBLISHING ENGINE ---
 class EconomistPDF(FPDF):
     def header(self):
-        # Red Header Bar
         self.set_fill_color(227, 18, 11) 
         self.rect(0, 0, 210, 20, 'F')
-        # White Logo Text
         self.set_font('Arial', 'B', 24)
         self.set_text_color(255, 255, 255)
         self.set_y(5)
@@ -27,35 +32,29 @@ class EconomistPDF(FPDF):
         self.ln(20)
 
     def footer(self):
-        # Page numbers
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
     def chapter_title(self, label):
-        # Section Header (e.g. "BUSINESS")
         self.ln(8)
         self.set_font('Arial', 'B', 18)
-        self.set_text_color(227, 18, 11) # Red
+        self.set_text_color(227, 18, 11)
         self.cell(0, 10, label.upper(), 0, 1, 'L')
-        # Line
         self.set_draw_color(0, 0, 0)
         self.line(self.get_x(), self.get_y(), 190, self.get_y())
         self.ln(5)
 
     def story_headline(self, headline):
-        # Article Title
         self.set_font('Arial', 'B', 14)
         self.set_text_color(0, 0, 0)
         self.multi_cell(0, 6, headline)
         self.ln(2)
 
     def story_body(self, body):
-        # Article Text
         self.set_font('Times', '', 12)
         self.set_text_color(20, 20, 20)
-        # Indent for "Story Block" look
         original_margin = self.l_margin
         self.set_left_margin(original_margin + 5) 
         self.multi_cell(0, 6, body)
@@ -117,23 +116,19 @@ def extract_text_from_pdf(pdf_file):
         return ""
 
 def summarize_text(text):
-    print("Analyzing with Gemini...")
-    # CHANGE THIS LINE BELOW:
-    model = genai.GenerativeModel("gemini-1.5-pro") 
+    print("Analyzing with Gemini Pro...")
+    # USING PRO MODEL
+    model = genai.GenerativeModel("gemini-1.5-pro")
     
-    
-    # --- UPDATED PROMPT FOR SPECIFIC SECTIONS ---
     prompt = (
         "You are the Chief Editor at The Economist. Read the text below. "
         "Summarize the issue, but prioritizing these specific sections: "
         "'The World This Week', 'Britain', 'Business', 'Finance and Economics', and 'Science & Technology'.\n\n"
-        
         "INSTRUCTIONS:\n"
-        "1. For the PRIORITY SECTIONS listed above: Write detailed, 5-sentence summaries for each story. Go deep into the details.\n"
-        "2. For OTHER sections (like Culture, Letters, etc.): Keep them brief (1-2 sentences) or omit them if minor.\n"
-        "3. FORMATTING (Strict): Use '## ' for Section Headers and '### ' for Story Headlines.\n"
+        "1. For the PRIORITY SECTIONS listed above: Write detailed, 5-sentence summaries for each story.\n"
+        "2. For OTHER sections: Keep them brief (1-2 sentences) or omit if minor.\n"
+        "3. FORMATTING: Use '## ' for Section Headers and '### ' for Story Headlines.\n"
         "4. Do not use bold (**) characters in the body text.\n\n"
-        
         f"DOCUMENT CONTENT:\n{text}"
     )
     
@@ -146,33 +141,51 @@ def create_formatted_pdf(text, date_label):
     pdf.set_margins(20, 20, 20)
     pdf.add_page()
     
-    # Metadata Title
     pdf.set_font("Arial", 'B', 12)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 10, f"Issue Date: {date_label}", ln=True, align='R')
     pdf.ln(5)
 
     lines = text.split('\n')
-    
     for line in lines:
         clean = line.encode('latin-1', 'replace').decode('latin-1').strip()
-        
         if not clean: continue
-            
         if clean.startswith('## '):
-            section_title = clean.replace('##', '').strip()
-            pdf.chapter_title(section_title)
-            
+            pdf.chapter_title(clean.replace('##', '').strip())
         elif clean.startswith('### '):
-            headline = clean.replace('###', '').strip()
-            pdf.story_headline(headline)
-            
+            pdf.story_headline(clean.replace('###', '').strip())
         else:
             pdf.story_body(clean)
 
     filename = f"Economist_Summary_{date_label}.pdf"
     pdf.output(filename)
     return filename
+
+def send_email(filename):
+    print(f"Sending email to {EMAIL_USER}...")
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+        print("Email credentials missing! Skipping email.")
+        return
+
+    msg = EmailMessage()
+    msg['Subject'] = f"The Weekly Digest - {filename}"
+    msg['From'] = EMAIL_USER
+    msg['To'] = EMAIL_USER # Sending to yourself
+    msg.set_content("Here is your AI-generated summary of The Economist (Latest Issue).")
+
+    with open(filename, 'rb') as f:
+        file_data = f.read()
+        file_name = os.path.basename(filename)
+
+    msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=file_name)
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(EMAIL_USER, EMAIL_PASSWORD)
+            smtp.send_message(msg)
+        print("Email sent successfully!")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
 
 def main():
     pdf_url, date_label = get_latest_pdf_url()
@@ -184,6 +197,9 @@ def main():
             summary = summarize_text(pdf_text)
             filename = create_formatted_pdf(summary, date_label)
             print(f"Success! Published: {filename}")
+            
+            # SEND EMAIL
+            send_email(filename)
         else:
             print("PDF Text empty.")
     else:
