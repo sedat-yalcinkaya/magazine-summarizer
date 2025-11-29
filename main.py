@@ -10,9 +10,18 @@ from email.message import EmailMessage
 # --- CONFIGURATION ---
 API_KEY = os.environ["GEMINI_API_KEY"]
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+
 # Email Credentials
 EMAIL_USER = os.environ.get("EMAIL_USER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+
+# --- RECIPIENT LIST ---
+# Add as many emails as you want here.
+# NOTE: Ensure 'EMAIL_USER' is approved in your Amazon Kindle settings!
+RECIPIENTS = [
+    EMAIL_USER,                 # Send a copy to yourself
+    "sedat.yalcinkaya@msn.com",  # Your friend's email
+]
 
 # Use PRO model for better reasoning
 genai.configure(api_key=API_KEY)
@@ -117,7 +126,6 @@ def extract_text_from_pdf(pdf_file):
 
 def summarize_text(text):
     print("Analyzing with Gemini Pro...")
-    # USING PRO MODEL
     model = genai.GenerativeModel("gemini-1.5-pro")
     
     prompt = (
@@ -162,28 +170,31 @@ def create_formatted_pdf(text, date_label):
     return filename
 
 def send_email(filename):
-    print(f"Sending email to {EMAIL_USER}...")
+    print(f"Sending email to {len(RECIPIENTS)} recipients...")
     if not EMAIL_USER or not EMAIL_PASSWORD:
         print("Email credentials missing! Skipping email.")
         return
 
+    # Create the email
     msg = EmailMessage()
     msg['Subject'] = f"The Weekly Digest - {filename}"
     msg['From'] = EMAIL_USER
-    msg['To'] = EMAIL_USER # Sending to yourself
+    # Join all emails with a comma (required format for email headers)
+    msg['To'] = ", ".join(RECIPIENTS) 
     msg.set_content("Here is your AI-generated summary of The Economist (Latest Issue).")
 
+    # Attach the PDF
     with open(filename, 'rb') as f:
         file_data = f.read()
         file_name = os.path.basename(filename)
-
     msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=file_name)
 
     try:
+        # Connect to Gmail Server
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(EMAIL_USER, EMAIL_PASSWORD)
             smtp.send_message(msg)
-        print("Email sent successfully!")
+        print("Emails sent successfully!")
     except Exception as e:
         print(f"Failed to send email: {e}")
 
