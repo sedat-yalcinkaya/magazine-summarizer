@@ -36,9 +36,36 @@ def get_latest_pdf_url():
     items = response.json()
     folders = [i['name'] for i in items if i['type'] == 'dir']
     
+    # --- THE FIX ---
+    # We remove any folder that doesn't start with a number (like "The_World_Ahead")
+    # This ensures we only look at dated folders (e.g., "2025-01-04")
+    folders = [f for f in folders if f[0].isdigit()]
+    
     if not folders:
-        print("No folders found!")
+        print("No dated folders found!")
         return None
+        
+    # Sort to find the latest
+    latest_folder = sorted(folders)[-1]
+    print(f"Latest issue folder found: {latest_folder}")
+
+    # 2. Look inside that folder
+    folder_url = f"https://api.github.com/repos/{TARGET_REPO}/contents/{BASE_PATH}/{latest_folder}"
+    response = requests.get(folder_url, headers=get_github_headers())
+    files = response.json()
+
+    # 3. Find the PDF and build the 'Raw' link
+    for file in files:
+        if file['name'].lower().endswith('.pdf'):
+            print(f"Found PDF: {file['name']}")
+            
+            file_path = file['path']
+            raw_url = f"https://github.com/{TARGET_REPO}/raw/main/{file_path}"
+            print(f"Generated Raw Link: {raw_url}")
+            return raw_url
+            
+    print("No PDF found in the latest folder.")
+    return None
         
     # Sort to find the latest
     latest_folder = sorted(folders)[-1]
