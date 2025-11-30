@@ -127,7 +127,7 @@ def summarize_text(text):
     print("Analyzing with Gemini Pro...")
     
     # We use 'gemini-1.5-pro-latest' to fix the 404 error
-    model = genai.GenerativeModel("gemini-1.5-pro")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = (
         "You are the Chief Editor at The Economist. Read the text below. "
