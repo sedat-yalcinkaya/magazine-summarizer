@@ -16,14 +16,13 @@ EMAIL_USER = os.environ.get("EMAIL_USER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
 # --- RECIPIENT LIST ---
-# Add as many emails as you want here.
-# NOTE: Ensure 'EMAIL_USER' is approved in your Amazon Kindle settings!
 RECIPIENTS = [
-    EMAIL_USER,                 # Send a copy to yourself
-    "sedat.yalcinkaya@msn.com",  # Your friend's email
+    EMAIL_USER,                 # Send to yourself
+    "your_friend@example.com",  # CHANGE THIS (Optional)
+    "your_kindle@kindle.com"    # CHANGE THIS (Optional)
 ]
 
-# Use PRO model for better reasoning
+# Configure Gemini
 genai.configure(api_key=API_KEY)
 
 TARGET_REPO = "Monkfishare/The_Economist"
@@ -126,8 +125,10 @@ def extract_text_from_pdf(pdf_file):
 
 def summarize_text(text):
     print("Analyzing with Gemini Pro...")
-model = genai.GenerativeModel("gemini-1.5-pro-latest")
-
+    
+    # We use 'gemini-1.5-pro-latest' to fix the 404 error
+    model = genai.GenerativeModel("gemini-1.5-pro-latest")
+    
     prompt = (
         "You are the Chief Editor at The Economist. Read the text below. "
         "Summarize the issue, but prioritizing these specific sections: "
@@ -170,27 +171,26 @@ def create_formatted_pdf(text, date_label):
     return filename
 
 def send_email(filename):
-    print(f"Sending email to {len(RECIPIENTS)} recipients...")
+    # Filter out empty emails just in case
+    valid_recipients = [r for r in RECIPIENTS if r and "@" in r]
+    
+    print(f"Sending email to {len(valid_recipients)} recipients...")
     if not EMAIL_USER or not EMAIL_PASSWORD:
         print("Email credentials missing! Skipping email.")
         return
 
-    # Create the email
     msg = EmailMessage()
     msg['Subject'] = f"The Weekly Digest - {filename}"
     msg['From'] = EMAIL_USER
-    # Join all emails with a comma (required format for email headers)
-    msg['To'] = ", ".join(RECIPIENTS) 
+    msg['To'] = ", ".join(valid_recipients)
     msg.set_content("Here is your AI-generated summary of The Economist (Latest Issue).")
 
-    # Attach the PDF
     with open(filename, 'rb') as f:
         file_data = f.read()
         file_name = os.path.basename(filename)
     msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=file_name)
 
     try:
-        # Connect to Gmail Server
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(EMAIL_USER, EMAIL_PASSWORD)
             smtp.send_message(msg)
