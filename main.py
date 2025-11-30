@@ -18,8 +18,8 @@ EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 # --- RECIPIENT LIST ---
 RECIPIENTS = [
     EMAIL_USER,                 # Send to yourself
-    "your_friend@example.com",  # CHANGE THIS (Optional)
-    "your_kindle@kindle.com"    # CHANGE THIS (Optional)
+    "sedat.yalcinkaya@msn.com",  # CHANGE THIS (Optional)
+    "sedat.yacinkaya@gmail.com"    # CHANGE THIS (Optional)
 ]
 
 # Configure Gemini
