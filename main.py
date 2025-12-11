@@ -130,14 +130,20 @@ def summarize_text(text):
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = (
-        "You are the Chief Editor at The Economist. Read the text below. "
-        "Summarize the issue, but prioritizing these specific sections: "
-        "'The World This Week', 'Britain', 'Business', 'Finance and Economics', and 'Science & Technology'.\n\n"
-        "INSTRUCTIONS:\n"
-        "1. For the PRIORITY SECTIONS listed above: Write detailed, 5-sentence summaries for each story.\n"
-        "2. For OTHER sections: Keep them brief (1-2 sentences) or omit if minor.\n"
-        "3. FORMATTING: Use '## ' for Section Headers and '### ' for Story Headlines.\n"
-        "4. Do not use bold (**) characters in the body text.\n\n"
+        "You are the Chief Editor at The Economist. Read the full magazine text below.\n"
+        "Your job is to produce a structured summary that mirrors the magazine's own sections and article headlines.\n\n"
+        "SECTION & HEADLINE RULES:\n"
+        "- Use the Table of Contents within the document to identify every section and the article headlines inside each section.\n"
+        "- Preserve the exact section names and article headlines from the magazine. Do not invent new ones.\n"
+        "- Keep the original section order. Under each section, list every headline in the order it appears.\n\n"
+        "SUMMARY RULES:\n"
+        "- Under each headline, write a concise summary of the corresponding article.\n"
+        "- Priority sections ('The world this week', 'Britain', 'Business', 'Finance & economics', 'Science & technology') should receive 4-6 sentences per article.\n"
+        "- Other sections can be shorter (1-3 sentences) but must stay under their correct headline.\n"
+        "- If a section or headline appears but has no meaningful content in the issue, include the heading but write 'No significant coverage this issue.'\n\n"
+        "FORMATTING:\n"
+        "- Use '## ' for Section headers and '### ' for Article headlines.\n"
+        "- Do not use bold (**) characters in the body text.\n\n"
         f"DOCUMENT CONTENT:\n{text}"
     )
     
