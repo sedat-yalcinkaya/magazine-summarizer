@@ -20,6 +20,8 @@ RECIPIENTS = [
     EMAIL_USER,                 # Send to yourself
     "sedat.yalcinkaya@msn.com",  # CHANGE THIS (Optional)
     "sedat.yacinkaya@gmail.com"    # CHANGE THIS (Optional)
+    "sedat.yalcinkaya_8JmqmO@kindle.com"    # CHANGE THIS (Optional)
+    "sedat.yalcinkaya_kjL0c0@kindle.com"
 ]
 
 # Configure Gemini
