@@ -28,7 +28,7 @@ RECIPIENTS = [
 genai.configure(api_key=API_KEY)
 
 TARGET_REPO = "Monkfishare/The_Economist"
-BASE_PATH = "TE/2025"
+BASE_PATH = "TE/2026"
 
 # --- THE PUBLISHING ENGINE ---
 class EconomistPDF(FPDF):
