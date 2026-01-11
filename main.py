@@ -32,10 +32,18 @@ BASE_PATH = "TE/2025"
 
 # --- THE PUBLISHING ENGINE ---
 class EconomistPDF(FPDF):
+    def __init__(self, page_format="A4"):
+        super().__init__(format=page_format)
+        self.is_compact = self.w < 150
+        self.header_font_size = 18 if self.is_compact else 24
+        self.section_font_size = 14 if self.is_compact else 18
+        self.headline_font_size = 12 if self.is_compact else 14
+        self.body_font_size = 10 if self.is_compact else 12
+
     def header(self):
         self.set_fill_color(227, 18, 11) 
-        self.rect(0, 0, 210, 20, 'F')
-        self.set_font('Arial', 'B', 24)
+        self.rect(0, 0, self.w, 20, 'F')
+        self.set_font('Arial', 'B', self.header_font_size)
         self.set_text_color(255, 255, 255)
         self.set_y(5)
         self.cell(0, 10, 'The Weekly Digest', 0, 0, 'C')
@@ -49,21 +57,21 @@ class EconomistPDF(FPDF):
 
     def chapter_title(self, label):
         self.ln(8)
-        self.set_font('Arial', 'B', 18)
+        self.set_font('Arial', 'B', self.section_font_size)
         self.set_text_color(227, 18, 11)
         self.cell(0, 10, label.upper(), 0, 1, 'L')
         self.set_draw_color(0, 0, 0)
-        self.line(self.get_x(), self.get_y(), 190, self.get_y())
+        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
         self.ln(5)
 
     def story_headline(self, headline):
-        self.set_font('Arial', 'B', 14)
+        self.set_font('Arial', 'B', self.headline_font_size)
         self.set_text_color(0, 0, 0)
         self.multi_cell(0, 6, headline)
         self.ln(2)
 
     def story_body(self, body):
-        self.set_font('Times', '', 12)
+        self.set_font('Times', '', self.body_font_size)
         self.set_text_color(20, 20, 20)
         original_margin = self.l_margin
         self.set_left_margin(original_margin + 5) 
@@ -152,13 +160,16 @@ def summarize_text(text):
     response = model.generate_content(prompt)
     return response.text
 
-def create_formatted_pdf(text, date_label):
-    print("Typesetting PDF...")
-    pdf = EconomistPDF()
-    pdf.set_margins(20, 20, 20)
+def create_formatted_pdf(text, date_label, variant):
+    print(f"Typesetting {variant} PDF...")
+    page_format = "A4" if variant == "desktop" else "A5"
+    pdf = EconomistPDF(page_format=page_format)
+    margin = 20 if variant == "desktop" else 14
+    pdf.set_margins(margin, margin, margin)
     pdf.add_page()
     
-    pdf.set_font("Arial", 'B', 12)
+    meta_font_size = 12 if variant == "desktop" else 10
+    pdf.set_font("Arial", 'B', meta_font_size)
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 10, f"Issue Date: {date_label}", ln=True, align='R')
     pdf.ln(5)
@@ -174,11 +185,11 @@ def create_formatted_pdf(text, date_label):
         else:
             pdf.story_body(clean)
 
-    filename = f"Economist_Summary_{date_label}.pdf"
+    filename = f"Economist_Summary_{date_label}_{variant.capitalize()}.pdf"
     pdf.output(filename)
     return filename
 
-def send_email(filename):
+def send_email(filenames, date_label):
     # Filter out empty emails just in case
     valid_recipients = [r for r in RECIPIENTS if r and "@" in r]
     
@@ -188,15 +199,19 @@ def send_email(filename):
         return
 
     msg = EmailMessage()
-    msg['Subject'] = f"The Weekly Digest - {filename}"
+    msg['Subject'] = f"The Weekly Digest - {date_label}"
     msg['From'] = EMAIL_USER
     msg['To'] = ", ".join(valid_recipients)
-    msg.set_content("Here is your AI-generated summary of The Economist (Latest Issue).")
+    msg.set_content(
+        "Here is your AI-generated summary of The Economist (Latest Issue). "
+        "Both desktop and mobile PDFs are attached."
+    )
 
-    with open(filename, 'rb') as f:
-        file_data = f.read()
-        file_name = os.path.basename(filename)
-    msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=file_name)
+    for filename in filenames:
+        with open(filename, 'rb') as f:
+            file_data = f.read()
+            file_name = os.path.basename(filename)
+        msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=file_name)
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
@@ -214,11 +229,12 @@ def main():
         pdf_text = extract_text_from_pdf(pdf_file)
         if pdf_text:
             summary = summarize_text(pdf_text)
-            filename = create_formatted_pdf(summary, date_label)
-            print(f"Success! Published: {filename}")
+            desktop_filename = create_formatted_pdf(summary, date_label, "desktop")
+            mobile_filename = create_formatted_pdf(summary, date_label, "mobile")
+            print(f"Success! Published: {desktop_filename} and {mobile_filename}")
             
             # SEND EMAIL
-            send_email(filename)
+            send_email([desktop_filename, mobile_filename], date_label)
         else:
             print("PDF Text empty.")
     else:
