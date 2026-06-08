@@ -21,7 +21,7 @@ EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 RECIPIENTS = [
     EMAIL_USER,                 # Send to yourself
     "sedat.yalcinkaya@msn.com",  # CHANGE THIS (Optional)
-    "sedat.yacinkaya@gmail.com"    # CHANGE THIS (Optional)
+    "sedat.yacinkaya@gmail.com",    # CHANGE THIS (Optional)
     "uzelkerem@gmail.com"    # CHANGE THIS (Optional)
 ]
 
